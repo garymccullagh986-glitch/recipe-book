@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Recipe Book</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<!-- ============================================================
+     STEP 1 OF 2 — PASTE YOUR FIREBASE CONFIG HERE
+     Get these values from: Firebase Console → Your Project
+     → Project Settings → Your Apps → Firebase SDK snippet
+     ============================================================ -->
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey:            "PASTE_YOUR_apiKey_HERE",
+    authDomain:        "PASTE_YOUR_authDomain_HERE",
+    projectId:         "PASTE_YOUR_projectId_HERE",
+    storageBucket:     "PASTE_YOUR_storageBucket_HERE",
+    messagingSenderId: "PASTE_YOUR_messagingSenderId_HERE",
+    appId:             "PASTE_YOUR_appId_HERE"
+  };
+</script>
+<!-- ============================================================ -->
+
+<style>
+  :root {
+    --cream: #FAF7F2;
+    --warm-white: #FFFDF9;
+    --terracotta: #C4622D;
+    --terracotta-light: #F0E8E1;
+    --terracotta-dark: #8B3D14;
+    --sage: #5A7A5E;
+    --sage-light: #E8F0E9;
+    --text-dark: #1C1713;
+    --text-mid: #5A4E42;
+    --text-muted: #9A8E82;
+    --border: #E8E0D5;
+    --card-bg: #FFFDF9;
+    --tag-bg: #F0E8E1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text-dark); min-height: 100vh; }
+
+  /* AUTH SCREEN */
+  #authScreen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cream);
+  }
+  .auth-card {
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2.5rem;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+  }
+  .auth-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--terracotta);
+    margin-bottom: 6px;
+  }
+  .auth-logo span { color: var(--text-dark); }
+  .auth-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 2rem; line-height: 1.6; }
+  .google-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-dark);
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .google-btn:hover { border-color: var(--terracotta); box-shadow: 0 2px 12px rgba(196,98,45,0.12); }
+  .google-icon { width: 18px; height: 18px; }
+  .auth-note { font-size: 12px; color: var(--text-muted); margin-top: 1rem; line-height: 1.5; }
+
+  /* MAIN APP */
+  #app { display: none; }
+  header {
+    background: var(--warm-white);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600; color: var(--terracotta); }
+  .logo span { color: var(--text-dark); }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .user-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--terracotta-light); border: 1.5px solid var(--border);
+    font-size: 13px; font-weight: 500; color: var(--terracotta-dark);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; overflow: hidden;
+  }
+  .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .signout-btn {
+    font-size: 12px; color: var(--text-muted); background: none; border: none;
+    cursor: pointer; font-family: 'DM Sans', sans-serif; padding: 4px 8px; border-radius: 6px;
+  }
+  .signout-btn:hover { color: var(--terracotta); background: var(--terracotta-light); }
+  nav { display: flex; gap: 6px; }
+  .nav-btn {
+    padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+    background: transparent; font-family: 'DM Sans', sans-serif; font-size: 13px;
+    font-weight: 500; color: var(--text-mid); cursor: pointer; transition: all 0.18s;
+  }
+  .nav-btn:hover { border-color: var(--terracotta); color: var(--terracotta); }
+  .nav-btn.active { background: var(--terracotta); border-color: var(--terracotta); color: #fff; }
+
+  .layout { display: flex; min-height: calc(100vh - 60px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 220px; flex-shrink: 0; background: var(--warm-white);
+    border-right: 1px solid var(--border); padding: 1.25rem 0.75rem;
+    position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto;
+  }
+  .sidebar-label {
+    font-size: 10px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; padding: 0 8px;
+  }
+  .search-input {
+    width: 100%; padding: 8px 11px; border-radius: 9px; border: 1.5px solid var(--border);
+    background: var(--cream); font-family: 'DM Sans', sans-serif; font-size: 13px;
+    color: var(--text-dark); outline: none; transition: border-color 0.18s; margin-bottom: 1.25rem;
+  }
+  .search-input:focus { border-color: var(--terracotta); }
+  .category-list { list-style: none; }
+  .category-item {
+    padding: 7px 10px; border-radius: 7px; font-size: 13px; color: var(--text-mid);
+    cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+    transition: all 0.15s;
+  }
+  .category-item:hover { background: var(--cream); color: var(--text-dark); }
+  .category-item.active { background: var(--terracotta-light); color: var(--terracotta-dark); font-weight: 500; }
+  .count {
+    font-size: 11px; background: var(--border); padding: 1px 7px;
+    border-radius: 10px; color: var(--text-muted);
+  }
+  .category-item.active .count { background: var(--terracotta); color: white; }
+
+  /* MAIN */
+  .main-content { flex: 1; padding: 1.75rem; min-width: 0; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .grid-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 10px; }
+  .section-title { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 600; color: var(--text-dark); }
+  .add-btn {
+    padding: 9px 18px; background: var(--terracotta); color: white; border: none;
+    border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px;
+    font-weight: 500; cursor: pointer; transition: all 0.18s;
+  }
+  .add-btn:hover { background: var(--terracotta-dark); }
+
+  .recipe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1rem; }
+  .recipe-card {
+    background: var(--card-bg); border-radius: 13px; border: 1px solid var(--border);
+    overflow: hidden; cursor: pointer; transition: all 0.2s;
+  }
+  .recipe-card:hover { box-shadow: 0 6px 24px rgba(60,40,20,0.13); transform: translateY(-2px); }
+  .card-emoji { background: var(--terracotta-light); height: 100px; display: flex; align-items: center; justify-content: center; font-size: 44px; }
+  .card-body { padding: 12px 14px; }
+  .card-title { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 600; color: var(--text-dark); margin-bottom: 3px; line-height: 1.3; }
+  .card-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { background: var(--tag-bg); color: var(--terracotta-dark); font-size: 11px; padding: 2px 7px; border-radius: 5px; font-weight: 500; }
+  .tag.sage { background: var(--sage-light); color: var(--sage); }
+
+  .empty-state { text-align: center; padding: 3.5rem 2rem; color: var(--text-muted); grid-column: 1/-1; }
+  .empty-state .big-emoji { font-size: 52px; margin-bottom: 0.75rem; display: block; }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+
+  /* DETAIL */
+  .back-btn {
+    background: none; border: none; font-family: 'DM Sans', sans-serif; font-size: 13px;
+    color: var(--terracotta); cursor: pointer; padding: 0; margin-bottom: 1.25rem;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .back-btn:hover { color: var(--terracotta-dark); }
+  .detail-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.25rem; gap: 1rem; }
+  .detail-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 600; line-height: 1.2; color: var(--text-dark); }
+  .detail-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn {
+    width: 34px; height: 34px; border-radius: 7px; border: 1.5px solid var(--border);
+    background: transparent; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 15px; transition: all 0.15s;
+  }
+  .icon-btn:hover { border-color: var(--terracotta); background: var(--terracotta-light); }
+  .icon-btn.danger:hover { border-color: #c0392b; background: #fdf0ef; }
+  .detail-meta { display: flex; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .meta-pill {
+    display: flex; align-items: center; gap: 5px; background: var(--card-bg);
+    border: 1px solid var(--border); border-radius: 7px; padding: 5px 10px;
+    font-size: 12px; color: var(--text-mid);
+  }
+  .detail-description { font-size: 14px; line-height: 1.7; color: var(--text-mid); margin-bottom: 1.75rem; font-style: italic; }
+  .detail-sections { display: grid; grid-template-columns: 1fr 1.6fr; gap: 1.75rem; }
+  @media (max-width: 640px) { .detail-sections { grid-template-columns: 1fr; } .sidebar { display: none; } }
+  .detail-section-title {
+    font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 600;
+    color: var(--text-dark); margin-bottom: 0.9rem; padding-bottom: 7px;
+    border-bottom: 2px solid var(--terracotta); display: inline-block;
+  }
+  .ingredient-list { list-style: none; }
+  .ingredient-item {
+    display: flex; align-items: center; gap: 9px; padding: 7px 0;
+    border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text-dark);
+  }
+  .ingredient-item:last-child { border-bottom: none; }
+  .ingredient-dot { width: 5px; height: 5px; background: var(--terracotta); border-radius: 50%; flex-shrink: 0; }
+  .step-list { list-style: none; }
+  .step-item { display: flex; gap: 12px; margin-bottom: 1rem; font-size: 14px; line-height: 1.7; color: var(--text-mid); }
+  .step-num {
+    flex-shrink: 0; width: 24px; height: 24px; background: var(--terracotta); color: white;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500; margin-top: 3px;
+  }
+  .detail-notes { margin-top: 1.75rem; background: var(--sage-light); border-radius: 11px; padding: 1rem 1.2rem; font-size: 14px; line-height: 1.7; color: var(--sage); }
+  .detail-notes strong { font-weight: 500; color: #3a5c3e; display: block; margin-bottom: 3px; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(28,23,19,0.55);
+    z-index: 200; display: none; align-items: center; justify-content: center; padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--warm-white); border-radius: 16px; width: 100%;
+    max-width: 640px; max-height: 90vh; overflow-y: auto; padding: 1.75rem;
+  }
+  .modal-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; margin-bottom: 1.25rem; color: var(--text-dark); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-bottom: 0.9rem; }
+  .form-group { margin-bottom: 0.9rem; }
+  label { display: block; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 5px; }
+  input[type="text"], input[type="number"], input[type="password"], select, textarea {
+    width: 100%; padding: 9px 11px; border-radius: 9px; border: 1.5px solid var(--border);
+    background: var(--cream); font-family: 'DM Sans', sans-serif; font-size: 14px;
+    color: var(--text-dark); outline: none; transition: border-color 0.18s; resize: vertical;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--terracotta); }
+  .emoji-picker { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+  .emoji-opt { font-size: 21px; padding: 4px 5px; border-radius: 7px; border: 1.5px solid transparent; cursor: pointer; transition: all 0.12s; }
+  .emoji-opt:hover { background: var(--cream); }
+  .emoji-opt.selected { border-color: var(--terracotta); background: var(--terracotta-light); }
+  .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; }
+  .btn-secondary {
+    padding: 9px 18px; border-radius: 9px; border: 1.5px solid var(--border);
+    background: transparent; font-family: 'DM Sans', sans-serif; font-size: 13px;
+    font-weight: 500; color: var(--text-mid); cursor: pointer; transition: all 0.15s;
+  }
+  .btn-secondary:hover { border-color: var(--text-mid); }
+  .btn-primary {
+    padding: 9px 18px; border-radius: 9px; border: none; background: var(--terracotta);
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: white;
+    cursor: pointer; transition: all 0.18s;
+  }
+  .btn-primary:hover { background: var(--terracotta-dark); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* AI VIEW */
+  .ai-panel { max-width: 640px; }
+  .ai-intro { background: var(--card-bg); border: 1px solid var(--border); border-radius: 13px; padding: 1.1rem 1.35rem; margin-bottom: 1.25rem; }
+  .ai-intro p { font-size: 14px; line-height: 1.7; color: var(--text-mid); }
+  .ingredient-tags-input {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 44px;
+    padding: 7px 9px; border-radius: 9px; border: 1.5px solid var(--border);
+    background: var(--cream); cursor: text; margin-bottom: 1rem;
+  }
+  .ingredient-tags-input:focus-within { border-color: var(--terracotta); }
+  .ing-tag {
+    background: var(--terracotta-light); color: var(--terracotta-dark); font-size: 12px;
+    font-weight: 500; padding: 3px 9px; border-radius: 5px; display: flex; align-items: center; gap: 5px;
+  }
+  .ing-tag button { background: none; border: none; cursor: pointer; color: var(--terracotta); font-size: 14px; line-height: 1; padding: 0; }
+  .tags-input-field { border: none; outline: none; background: transparent; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text-dark); min-width: 120px; flex: 1; }
+  .ai-suggestion { background: var(--card-bg); border: 1px solid var(--border); border-radius: 13px; overflow: hidden; margin-bottom: 0.9rem; }
+  .suggestion-header { padding: 13px 15px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+  .suggestion-name { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 600; color: var(--text-dark); }
+  .suggestion-body { padding: 13px 15px; }
+  .suggestion-body p { font-size: 14px; line-height: 1.7; color: var(--text-mid); margin-bottom: 8px; }
+  .suggestion-body ul { margin: 0; padding: 0; list-style: none; }
+  .suggestion-body ul li { font-size: 13px; color: var(--text-mid); padding: 3px 0; display: flex; align-items: flex-start; gap: 8px; }
+  .suggestion-body ul li::before { content: ''; width: 5px; height: 5px; background: var(--terracotta); border-radius: 50%; flex-shrink: 0; margin-top: 7px; }
+  .save-suggestion-btn {
+    margin-top: 10px; padding: 7px 13px; border-radius: 7px; border: 1.5px solid var(--sage);
+    background: transparent; font-family: 'DM Sans', sans-serif; font-size: 12px;
+    font-weight: 500; color: var(--sage); cursor: pointer; transition: all 0.15s;
+  }
+  .save-suggestion-btn:hover { background: var(--sage-light); }
+  .save-suggestion-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .api-key-notice {
+    background: #fffbe6; border: 1px solid #f0d060; border-radius: 9px; padding: 11px 13px;
+    font-size: 13px; color: #7a6010; line-height: 1.6; margin-bottom: 1.25rem;
+  }
+  .api-key-notice a { color: var(--terracotta); }
+  .api-key-row { display: flex; gap: 8px; align-items: center; margin-bottom: 1rem; }
+  .api-key-row input { flex: 1; font-size: 12px; }
+  .api-key-row button { flex-shrink: 0; padding: 8px 13px; border-radius: 8px; background: var(--terracotta); border: none; color: white; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
+  .loading-dots { display: inline-flex; gap: 4px; align-items: center; padding: 1.5rem 0; }
+  .loading-dots span { width: 7px; height: 7px; background: var(--terracotta); border-radius: 50%; animation: dot-pulse 1.4s infinite ease-in-out; }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dot-pulse { 0%,80%,100%{transform:scale(0.6);opacity:0.4}40%{transform:scale(1);opacity:1} }
+
+  /* SYNC STATUS */
+  .sync-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #ccc;
+    display: inline-block; margin-right: 5px; transition: background 0.3s;
+  }
+  .sync-dot.synced { background: #4caf50; }
+  .sync-dot.syncing { background: #ff9800; animation: pulse 1s infinite; }
+  .sync-dot.error { background: #f44336; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+  .sync-label { font-size: 11px; color: var(--text-muted); }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">My <span>Recipe</span> Book</div>
+    <p class="auth-sub">Your personal recipe collection,<br>synced across all your devices.</p>
+    <button class="google-btn" onclick="signInWithGoogle()">
+      <svg class="google-icon" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+      Sign in with Google
+    </button>
+    <p class="auth-note">Your recipes are private to your Google account only.</p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <div class="logo">My <span>Recipe</span> Book</div>
+    <nav>
+      <button class="nav-btn active" onclick="showView('recipes')">My Recipes</button>
+      <button class="nav-btn" onclick="showView('ai')">AI Suggestions</button>
+    </nav>
+    <div class="header-right">
+      <span class="sync-dot" id="syncDot"></span><span class="sync-label" id="syncLabel">Synced</span>
+      <div class="user-avatar" id="userAvatar" title="Sign out" onclick="signOut()"></div>
+      <button class="signout-btn" onclick="signOut()">Sign out</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-label" style="margin-bottom:8px">Search</div>
+      <input class="search-input" type="text" placeholder="Search recipes..." id="searchInput" oninput="renderGrid()">
+      <div class="sidebar-label">Categories</div>
+      <ul class="category-list" id="categoryList"></ul>
+    </aside>
+
+    <main class="main-content">
+      <!-- GRID VIEW -->
+      <div class="view active" id="view-recipes">
+        <div class="grid-header">
+          <h1 class="section-title" id="gridTitle">All Recipes</h1>
+          <button class="add-btn" onclick="openAddModal()">+ Add Recipe</button>
+        </div>
+        <div class="recipe-grid" id="recipeGrid"></div>
+      </div>
+
+      <!-- DETAIL VIEW -->
+      <div class="view" id="view-detail">
+        <button class="back-btn" onclick="showRecipeList()">← Back to recipes</button>
+        <div id="detailContent"></div>
+      </div>
+
+      <!-- AI VIEW -->
+      <div class="view" id="view-ai">
+        <h1 class="section-title" style="margin-bottom:1.25rem">AI Meal Suggestions</h1>
+        <div class="ai-panel">
+          <div class="ai-intro">
+            <p>Enter a few ingredients you have on hand and I'll suggest meal ideas. Save any you like directly to your recipe book.</p>
+          </div>
+          <div id="apiKeySection">
+            <div class="api-key-notice">
+              <strong>Anthropic API Key needed</strong> — get yours at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>. It's saved locally on your device only.
+            </div>
+            <div class="api-key-row">
+              <input type="password" id="apiKeyInput" placeholder="sk-ant-..." />
+              <button onclick="saveApiKey()">Save Key</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Your ingredients (press Enter or comma to add)</label>
+            <div class="ingredient-tags-input" id="ingredientTagsBox" onclick="document.getElementById('tagInput').focus()">
+              <input class="tags-input-field" id="tagInput" placeholder="e.g. chicken, garlic, lemon..." onkeydown="handleTagInput(event)" />
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap;">
+            <div class="form-group" style="flex:1;min-width:150px;margin:0">
+              <label>Dietary preference</label>
+              <select id="dietPref">
+                <option value="">No preference</option>
+                <option>Vegetarian</option><option>Vegan</option>
+                <option>Gluten-free</option><option>Low carb</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;min-width:150px;margin:0">
+              <label>Meal type</label>
+              <select id="mealType">
+                <option value="">Any</option>
+                <option>Breakfast</option><option>Lunch</option>
+                <option>Dinner</option><option>Snack</option><option>Dessert</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn-primary" id="suggestBtn" onclick="getSuggestions()">Get Suggestions</button>
+          <div id="suggestionsOutput" style="margin-top:1.25rem"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- RECIPE MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOnOverlay(event)">
+  <div class="modal">
+    <h2 class="modal-title" id="modalTitle">Add New Recipe</h2>
+    <div class="form-row">
+      <div class="form-group" style="margin:0"><label>Recipe Name</label><input type="text" id="rName" placeholder="e.g. BBQ Short Ribs"></div>
+      <div class="form-group" style="margin:0"><label>Category</label>
+        <select id="rCategory">
+          <option>Breakfast</option><option>Lunch</option><option selected>Dinner</option>
+          <option>Snack</option><option>Dessert</option><option>Baking</option>
+          <option>BBQ</option><option>Soup</option><option>Salad</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="margin:0"><label>Prep time (mins)</label><input type="number" id="rPrep" placeholder="15" min="0"></div>
+      <div class="form-group" style="margin:0"><label>Cook time (mins)</label><input type="number" id="rCook" placeholder="30" min="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="margin:0"><label>Serves</label><input type="number" id="rServes" placeholder="4" min="1"></div>
+      <div class="form-group" style="margin:0"><label>Difficulty</label>
+        <select id="rDifficulty"><option>Easy</option><option selected>Medium</option><option>Hard</option></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Icon</label>
+      <div class="emoji-picker" id="emojiPicker">
+        <span class="emoji-opt selected" onclick="selectEmoji(this)" data-emoji="🍽️">🍽️</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🥩">🥩</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🍗">🍗</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🐟">🐟</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🥗">🥗</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🍜">🍜</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🍕">🍕</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🥘">🥘</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🍲">🍲</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🥧">🥧</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🍰">🍰</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🧁">🧁</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🥞">🥞</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🍳">🍳</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🔥">🔥</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🌮">🌮</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🫕">🫕</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🥦">🥦</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🍱">🍱</span>
+        <span class="emoji-opt" onclick="selectEmoji(this)" data-emoji="🤖">🤖</span>
+      </div>
+    </div>
+    <div class="form-group"><label>Short description (optional)</label><input type="text" id="rDesc" placeholder="A quick note about the recipe"></div>
+    <div class="form-group"><label>Ingredients (one per line)</label><textarea id="rIngredients" rows="5" placeholder="200g chicken breast&#10;2 cloves garlic&#10;1 tsp cumin"></textarea></div>
+    <div class="form-group"><label>Method / Steps (one step per line)</label><textarea id="rSteps" rows="7" placeholder="Preheat oven to 180°C&#10;Season the chicken..."></textarea></div>
+    <div class="form-group"><label>Notes / Tips (optional)</label><textarea id="rNotes" rows="2" placeholder="Works great with rice..."></textarea></div>
+    <input type="hidden" id="editingId">
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveRecipe()">Save Recipe</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as fbSignOut, onAuthStateChanged }
+    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+  import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy }
+    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  let currentUser = null;
+  let unsubscribeSnapshot = null;
+
+  // ---- AUTH ----
+  window.signInWithGoogle = async () => {
+    try { await signInWithPopup(auth, provider); }
+    catch(e) { alert('Sign in failed: ' + e.message); }
+  };
+
+  window.signOut = async () => {
+    if (unsubscribeSnapshot) unsubscribeSnapshot();
+    await fbSignOut(auth);
+    recipes = [];
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  };
+
+  onAuthStateChanged(auth, user => {
+    currentUser = user;
+    if (user) {
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      // Avatar
+      const av = document.getElementById('userAvatar');
+      if (user.photoURL) av.innerHTML = `<img src="${user.photoURL}" alt="">`;
+      else av.textContent = (user.displayName||user.email||'?')[0].toUpperCase();
+      // Listen to recipes
+      listenToRecipes(user.uid);
+      // API key
+      const key = localStorage.getItem('recipeApiKey');
+      if (key) {
+        document.getElementById('apiKeyInput').value = '••••••••••';
+        document.getElementById('apiKeySection').style.opacity = '0.5';
+      }
+    }
+  });
+
+  function setSyncStatus(state) {
+    const dot = document.getElementById('syncDot');
+    const lbl = document.getElementById('syncLabel');
+    dot.className = 'sync-dot ' + state;
+    lbl.textContent = state === 'syncing' ? 'Saving…' : state === 'error' ? 'Error' : 'Synced';
+  }
+
+  // ---- FIRESTORE ----
+  function listenToRecipes(uid) {
+    if (unsubscribeSnapshot) unsubscribeSnapshot();
+    const col = collection(db, 'users', uid, 'recipes');
+    const q = query(col, orderBy('createdAt', 'asc'));
+    unsubscribeSnapshot = onSnapshot(q, snap => {
+      recipes = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      renderSidebar();
+      renderGrid();
+      setSyncStatus('synced');
+    }, err => {
+      console.error(err);
+      setSyncStatus('error');
+    });
+  }
+
+  window._saveToFirestore = async (recipe) => {
+    if (!currentUser) return;
+    setSyncStatus('syncing');
+    const ref = doc(db, 'users', currentUser.uid, 'recipes', recipe.id);
+    await setDoc(ref, recipe);
+  };
+
+  window._deleteFromFirestore = async (id) => {
+    if (!currentUser) return;
+    setSyncStatus('syncing');
+    const ref = doc(db, 'users', currentUser.uid, 'recipes', id);
+    await deleteDoc(ref);
+  };
+</script>
+
+<script>
+  // ---- STATE ----
+  let recipes = [];
+  let currentCategory = 'All';
+  let ingredientTags = [];
+  let selectedEmoji = '🍽️';
+  let apiKey = localStorage.getItem('recipeApiKey') || '';
+
+  // ---- VIEWS ----
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach((b,i) => {
+      b.classList.toggle('active', (i===0&&name==='recipes')||(i===1&&name==='ai'));
+    });
+  }
+
+  function showRecipeList() {
+    document.getElementById('view-detail').classList.remove('active');
+    document.getElementById('view-recipes').classList.add('active');
+  }
+
+  // ---- SIDEBAR ----
+  function renderSidebar() {
+    const cats = ['All', ...new Set(recipes.map(r => r.category))].sort((a,b)=>a==='All'?-1:b==='All'?1:a.localeCompare(b));
+    document.getElementById('categoryList').innerHTML = cats.map(cat => {
+      const count = cat==='All' ? recipes.length : recipes.filter(r=>r.category===cat).length;
+      return `<li class="category-item ${cat===currentCategory?'active':''}" onclick="filterCategory('${cat}')">
+        <span>${cat}</span><span class="count">${count}</span></li>`;
+    }).join('');
+  }
+
+  function filterCategory(cat) {
+    currentCategory = cat;
+    document.getElementById('gridTitle').textContent = cat==='All' ? 'All Recipes' : cat;
+    renderSidebar();
+    renderGrid();
+  }
+
+  // ---- GRID ----
+  function renderGrid() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    let list = currentCategory==='All' ? recipes : recipes.filter(r=>r.category===currentCategory);
+    if (q) list = list.filter(r => r.name.toLowerCase().includes(q)||(r.description||'').toLowerCase().includes(q)||r.ingredients.join(' ').toLowerCase().includes(q));
+    const grid = document.getElementById('recipeGrid');
+    if (!list.length) {
+      grid.innerHTML = `<div class="empty-state"><span class="big-emoji">📖</span><p>${q?'No recipes match your search.':'No recipes yet — add your first one!'}</p></div>`;
+      return;
+    }
+    grid.innerHTML = list.map(r => `
+      <div class="recipe-card" onclick="showDetail('${r.id}')">
+        <div class="card-emoji">${r.emoji}</div>
+        <div class="card-body">
+          <div class="card-title">${r.name}</div>
+          <div class="card-meta">${r.serves?r.serves+' servings · ':''}${r.cookTime?r.cookTime+'min cook':''}</div>
+          <div class="card-tags">
+            <span class="tag">${r.category}</span>
+            ${r.difficulty?`<span class="tag sage">${r.difficulty}</span>`:''}
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  // ---- DETAIL ----
+  function showDetail(id) {
+    const r = recipes.find(x=>x.id===id);
+    if (!r) return;
+    document.getElementById('view-recipes').classList.remove('active');
+    document.getElementById('view-detail').classList.add('active');
+    const ingLines = (r.ingredients||[]).map(i=>`<li class="ingredient-item"><span class="ingredient-dot"></span>${i}</li>`).join('');
+    const stepLines = (r.steps||[]).map((s,i)=>`<li class="step-item"><span class="step-num">${i+1}</span><span>${s}</span></li>`).join('');
+    document.getElementById('detailContent').innerHTML = `
+      <div class="detail-header">
+        <h1 class="detail-title">${r.emoji} ${r.name}</h1>
+        <div class="detail-actions">
+          <button class="icon-btn" title="Edit" onclick="openEditModal('${r.id}')">✏️</button>
+          <button class="icon-btn danger" title="Delete" onclick="deleteRecipe('${r.id}')">🗑️</button>
+        </div>
+      </div>
+      <div class="detail-meta">
+        ${r.prepTime?`<div class="meta-pill">⏱ Prep: ${r.prepTime} min</div>`:''}
+        ${r.cookTime?`<div class="meta-pill">🔥 Cook: ${r.cookTime} min</div>`:''}
+        ${r.serves?`<div class="meta-pill">👥 Serves ${r.serves}</div>`:''}
+        ${r.difficulty?`<div class="meta-pill">📊 ${r.difficulty}</div>`:''}
+        <div class="meta-pill">🏷 ${r.category}</div>
+      </div>
+      ${r.description?`<p class="detail-description">${r.description}</p>`:''}
+      <div class="detail-sections">
+        <div>
+          <div class="detail-section-title">Ingredients</div>
+          <ul class="ingredient-list">${ingLines||'<li class="ingredient-item">No ingredients listed.</li>'}</ul>
+        </div>
+        <div>
+          <div class="detail-section-title">Method</div>
+          <ol class="step-list">${stepLines||'<li class="step-item"><span class="step-num">1</span><span>No steps listed.</span></li>'}</ol>
+        </div>
+      </div>
+      ${r.notes?`<div class="detail-notes"><strong>💡 Notes</strong>${r.notes}</div>`:''}
+    `;
+  }
+
+  // ---- MODAL ----
+  function openAddModal() {
+    document.getElementById('modalTitle').textContent = 'Add New Recipe';
+    document.getElementById('editingId').value = '';
+    ['rName','rDesc','rIngredients','rSteps','rNotes'].forEach(id => document.getElementById(id).value='');
+    document.getElementById('rPrep').value=''; document.getElementById('rCook').value='';
+    document.getElementById('rServes').value=''; document.getElementById('rCategory').value='Dinner';
+    document.getElementById('rDifficulty').value='Medium';
+    selectEmoji(document.querySelector('.emoji-opt'));
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function openEditModal(id) {
+    const r = recipes.find(x=>x.id===id); if(!r) return;
+    document.getElementById('modalTitle').textContent='Edit Recipe';
+    document.getElementById('editingId').value=id;
+    document.getElementById('rName').value=r.name;
+    document.getElementById('rCategory').value=r.category;
+    document.getElementById('rPrep').value=r.prepTime||'';
+    document.getElementById('rCook').value=r.cookTime||'';
+    document.getElementById('rServes').value=r.serves||'';
+    document.getElementById('rDifficulty').value=r.difficulty||'Medium';
+    document.getElementById('rDesc').value=r.description||'';
+    document.getElementById('rIngredients').value=(r.ingredients||[]).join('\n');
+    document.getElementById('rSteps').value=(r.steps||[]).join('\n');
+    document.getElementById('rNotes').value=r.notes||'';
+    selectedEmoji=r.emoji;
+    document.querySelectorAll('.emoji-opt').forEach(el=>el.classList.toggle('selected',el.dataset.emoji===r.emoji));
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+  function closeModalOnOverlay(e) { if(e.target===document.getElementById('modalOverlay')) closeModal(); }
+  function selectEmoji(el) {
+    document.querySelectorAll('.emoji-opt').forEach(e=>e.classList.remove('selected'));
+    el.classList.add('selected'); selectedEmoji=el.dataset.emoji;
+  }
+
+  async function saveRecipe() {
+    const name = document.getElementById('rName').value.trim();
+    if (!name) { alert('Please enter a recipe name.'); return; }
+    const id = document.getElementById('editingId').value || Date.now().toString();
+    const existing = recipes.find(r=>r.id===id);
+    const recipe = {
+      id, name,
+      category: document.getElementById('rCategory').value,
+      prepTime: parseInt(document.getElementById('rPrep').value)||0,
+      cookTime: parseInt(document.getElementById('rCook').value)||0,
+      serves: parseInt(document.getElementById('rServes').value)||0,
+      difficulty: document.getElementById('rDifficulty').value,
+      description: document.getElementById('rDesc').value.trim(),
+      ingredients: document.getElementById('rIngredients').value.split('\n').map(s=>s.trim()).filter(Boolean),
+      steps: document.getElementById('rSteps').value.split('\n').map(s=>s.trim()).filter(Boolean),
+      notes: document.getElementById('rNotes').value.trim(),
+      emoji: selectedEmoji,
+      createdAt: existing ? existing.createdAt : Date.now()
+    };
+    await window._saveToFirestore(recipe);
+    closeModal();
+    if (document.getElementById('view-detail').classList.contains('active')) showDetail(id);
+  }
+
+  async function deleteRecipe(id) {
+    if (!confirm('Delete this recipe?')) return;
+    await window._deleteFromFirestore(id);
+    showRecipeList();
+  }
+
+  // ---- AI SUGGESTIONS ----
+  function saveApiKey() {
+    const val = document.getElementById('apiKeyInput').value.trim();
+    if (!val || val.startsWith('•')) return;
+    apiKey = val;
+    localStorage.setItem('recipeApiKey', apiKey);
+    document.getElementById('apiKeyInput').value='••••••••••';
+    document.getElementById('apiKeySection').style.opacity='0.5';
+  }
+
+  function handleTagInput(e) {
+    const input = e.target;
+    if (e.key==='Enter'||e.key===',') {
+      e.preventDefault();
+      const val = input.value.replace(',','').trim();
+      if (val && !ingredientTags.includes(val)) { ingredientTags.push(val); renderIngredientTags(); }
+      input.value='';
+    } else if (e.key==='Backspace' && !input.value && ingredientTags.length) {
+      ingredientTags.pop(); renderIngredientTags();
+    }
+  }
+
+  function removeTag(idx) { ingredientTags.splice(idx,1); renderIngredientTags(); }
+
+  function renderIngredientTags() {
+    document.getElementById('ingredientTagsBox').innerHTML =
+      ingredientTags.map((t,i)=>`<span class="ing-tag">${t}<button onclick="removeTag(${i})">×</button></span>`).join('')
+      + `<input class="tags-input-field" id="tagInput" placeholder="${ingredientTags.length?'':'e.g. chicken, garlic, lemon...'}" onkeydown="handleTagInput(event)" />`;
+  }
+
+  async function getSuggestions() {
+    if (!apiKey) { alert('Please save your Anthropic API key first.'); return; }
+    const inputEl = document.getElementById('tagInput');
+    if (inputEl.value.trim()) { ingredientTags.push(inputEl.value.trim()); inputEl.value=''; renderIngredientTags(); }
+    if (!ingredientTags.length) { alert('Please add at least one ingredient.'); return; }
+    const diet = document.getElementById('dietPref').value;
+    const mealType = document.getElementById('mealType').value;
+    const out = document.getElementById('suggestionsOutput');
+    out.innerHTML = `<div class="loading-dots"><span></span><span></span><span></span></div>`;
+    document.getElementById('suggestBtn').disabled = true;
+    const prompt = `You are a helpful chef. Given these ingredients: ${ingredientTags.join(', ')}.${diet?' Dietary preference: '+diet+'.':''}${mealType?' Meal type: '+mealType+'.':''} Suggest 3 meal ideas. For each provide: name, 2-sentence description, key ingredients (4-6 items), estimated cook time, difficulty (Easy/Medium/Hard). Respond ONLY with valid JSON array, no markdown: [{"name":"...","description":"...","ingredients":["..."],"cookTime":"...","difficulty":"..."}]`;
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
+        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, messages:[{role:'user',content:prompt}] })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      const suggestions = JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
+      out.innerHTML = suggestions.map((s,i) => `
+        <div class="ai-suggestion">
+          <div class="suggestion-header">
+            <div class="suggestion-name">${s.name}</div>
+            <div style="display:flex;gap:5px"><span class="tag">${s.cookTime}</span><span class="tag sage">${s.difficulty}</span></div>
+          </div>
+          <div class="suggestion-body">
+            <p>${s.description}</p>
+            <ul>${(s.ingredients||[]).map(ing=>`<li>${ing}</li>`).join('')}</ul>
+            <button class="save-suggestion-btn" id="save-btn-${i}" onclick="saveSuggestion(${i},${JSON.stringify(s).replace(/"/g,'&quot;')})">+ Save to My Recipes</button>
+          </div>
+        </div>`).join('');
+    } catch(err) {
+      out.innerHTML = `<div style="color:#c0392b;font-size:14px;padding:1rem 0">Error: ${err.message}</div>`;
+    }
+    document.getElementById('suggestBtn').disabled = false;
+  }
+
+  async function saveSuggestion(idx, suggestion) {
+    const recipe = {
+      id: Date.now().toString(), name: suggestion.name, category: 'Other',
+      prepTime: 0, cookTime: parseInt(suggestion.cookTime)||0, serves: 4,
+      difficulty: suggestion.difficulty||'Medium', description: suggestion.description,
+      ingredients: suggestion.ingredients||[], steps: [],
+      notes: 'Saved from AI suggestion. Add your method steps when you try it!',
+      emoji: '🤖', createdAt: Date.now()
+    };
+    await window._saveToFirestore(recipe);
+    const btn = document.getElementById('save-btn-'+idx);
+    if (btn) { btn.textContent='✓ Saved!'; btn.disabled=true; }
+  }
+</script>
+</body>
+</html>
